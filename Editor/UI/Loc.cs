@@ -75,6 +75,16 @@ namespace UniPrism
         private static readonly Dictionary<string, string> _chinese = new Dictionary<string, string>
         {
             { "Theme", "主题" },
+            { "About", "关于" },
+            { "Image opacity", "图片不透明度" },
+            { "Backdrop opacity", "底板不透明度" },
+            { "Text opacity", "文字不透明度" },
+            { "Project page", "项目主页" },
+            { "GitHub", "GitHub" },
+            { "Bilibili", "哔哩哔哩" },
+            { "Licence", "许可证" },
+            { "MIT. Free to use and modify, as long as the notice travels with it.", "MIT。可以自由使用和修改，只要声明跟着代码走。" },
+            { "Grew out of debugging UniSkin by piti6, also MIT.", "源于对 piti6 的 UniSkin 的排查，那个项目同为 MIT。" },
             { "Save", "保存" },
             { "Export", "导出" },
             { "Import", "导入" },

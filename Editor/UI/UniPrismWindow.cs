@@ -14,6 +14,7 @@ namespace UniPrism
 
         private string _selectedWindowTitle;
         private Vector2 _scrollPosition;
+        private bool _showAbout;
 
         [MenuItem("Window/UniPrism")]
         private static void Open()
@@ -34,6 +35,12 @@ namespace UniPrism
             using (var scroll = new EditorGUILayout.ScrollViewScope(_scrollPosition))
             {
                 _scrollPosition = scroll.scrollPosition;
+
+                if (_showAbout)
+                {
+                    AboutPage.Draw();
+                    return;
+                }
 
                 DrawWindowSelector();
 
@@ -88,6 +95,8 @@ namespace UniPrism
                 {
                     Loc.Toggle();
                 }
+
+                _showAbout = GUILayout.Toggle(_showAbout, Loc.Tr("About"), EditorStyles.toolbarButton, GUILayout.ExpandWidth(false));
             }
         }
 
@@ -155,15 +164,15 @@ namespace UniPrism
 
                 using (new EditorGUI.DisabledScope(!appearance.HasBackground))
                 {
-                    appearance.BackgroundTint = EditorGUILayout.ColorField(Loc.Tr("Image tint"), appearance.BackgroundTint);
+                    appearance.BackgroundTint = DrawTint(Loc.Tr("Image opacity"), Loc.Tr("Image tint"), appearance.BackgroundTint);
                     appearance.DrawOverContent = EditorGUILayout.Toggle(Loc.Tr("Draw over content"), appearance.DrawOverContent);
                 }
 
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField(Loc.Tr("Colours"), EditorStyles.boldLabel);
 
-                appearance.BackdropTint = EditorGUILayout.ColorField(Loc.Tr("Backdrop tint"), appearance.BackdropTint);
-                appearance.ContentTint = EditorGUILayout.ColorField(Loc.Tr("Text and icon tint"), appearance.ContentTint);
+                appearance.BackdropTint = DrawTint(Loc.Tr("Backdrop opacity"), Loc.Tr("Backdrop tint"), appearance.BackdropTint);
+                appearance.ContentTint = DrawTint(Loc.Tr("Text opacity"), Loc.Tr("Text and icon tint"), appearance.ContentTint);
 
                 EditorGUILayout.HelpBox(Loc.Tr("Lower the backdrop tint's alpha to thin out the window's own backdrop so the image shows through. Text stays legible because it is tinted separately."), MessageType.Info);
 
@@ -185,6 +194,18 @@ namespace UniPrism
 
                 ThemeStore.MarkChanged();
             }
+        }
+
+        /// <summary>
+        /// One tint is a colour and an opacity, and burying the opacity in a colour picker's alpha
+        /// slider hides the control that matters most here. Stored as one Color all the same.
+        /// </summary>
+        private static Color DrawTint(string opacityLabel, string colourLabel, Color tint)
+        {
+            var opacity = EditorGUILayout.Slider(opacityLabel, tint.a, 0f, 1f);
+            var colour = EditorGUILayout.ColorField(new GUIContent(colourLabel), tint, showEyedropper: true, showAlpha: false, hdr: false);
+
+            return new Color(colour.r, colour.g, colour.b, opacity);
         }
 
         private static void Export()
