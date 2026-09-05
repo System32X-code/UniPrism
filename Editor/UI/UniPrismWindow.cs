@@ -50,6 +50,10 @@ namespace UniPrism
                     return;
                 }
 
+                DrawPalette();
+
+                EditorGUILayout.Space();
+
                 DrawAppearance(ThemeStore.Theme.FindOrCreate(_selectedWindowTitle));
             }
         }
@@ -91,10 +95,8 @@ namespace UniPrism
                     ResetTheme();
                 }
 
-                if (GUILayout.Button(Loc.ToggleLabel, EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
-                {
-                    Loc.Toggle();
-                }
+                Loc.Current = (PrismLanguage)EditorGUILayout.Popup(
+                    (int)Loc.Current, Loc.LanguageNames, EditorStyles.toolbarPopup, GUILayout.Width(84f));
 
                 _showAbout = GUILayout.Toggle(_showAbout, Loc.Tr("About"), EditorStyles.toolbarButton, GUILayout.ExpandWidth(false));
             }
@@ -153,7 +155,20 @@ namespace UniPrism
                 var theme = ThemeStore.Theme;
                 var currentTexture = theme.FindTexture(appearance.BackgroundTextureId)?.Texture;
 
-                var picked = EditorGUILayout.ObjectField(Loc.Tr("Image"), currentTexture, typeof(Texture2D), allowSceneObjects: false) as Texture2D;
+                Texture2D picked;
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    picked = EditorGUILayout.ObjectField(Loc.Tr("Image"), currentTexture, typeof(Texture2D), allowSceneObjects: false) as Texture2D;
+
+                    using (new EditorGUI.DisabledScope(!appearance.HasBackground))
+                    {
+                        if (GUILayout.Button(Loc.Tr("Framing..."), GUILayout.Width(90f)))
+                        {
+                            ImageSettingsWindow.Open(appearance.WindowTitle);
+                        }
+                    }
+                }
 
                 if (picked != currentTexture)
                 {
@@ -171,7 +186,20 @@ namespace UniPrism
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField(Loc.Tr("Colours"), EditorStyles.boldLabel);
 
-                appearance.BackdropTint = DrawTint(Loc.Tr("Backdrop opacity"), Loc.Tr("Backdrop tint"), appearance.BackdropTint);
+                appearance.BackdropSlot = (PaletteSlot)EditorGUILayout.Popup(
+                    Loc.Tr("Colour source"),
+                    (int)appearance.BackdropSlot,
+                    new[] { Loc.Tr("Custom"), Loc.Tr("Primary"), Loc.Tr("Secondary"), Loc.Tr("Accent") });
+
+                appearance.BackdropTint = DrawTint(
+                    Loc.Tr("Backdrop opacity"),
+                    Loc.Tr("Backdrop tint"),
+                    appearance.BackdropTint,
+                    // Driven by the palette: still shown, so it is clear which colour is in play,
+                    // but edited from the palette section rather than here.
+                    overrideColour: appearance.BackdropSlot == PaletteSlot.Custom
+                        ? (Color?)null
+                        : ThemeStore.Theme.Palette.Resolve(appearance.BackdropSlot));
                 appearance.ContentTint = DrawTint(Loc.Tr("Text opacity"), Loc.Tr("Text and icon tint"), appearance.ContentTint);
 
                 EditorGUILayout.HelpBox(Loc.Tr("Lower the backdrop tint's alpha to thin out the window's own backdrop so the image shows through. Text stays legible because it is tinted separately."), MessageType.Info);
@@ -200,12 +228,84 @@ namespace UniPrism
         /// One tint is a colour and an opacity, and burying the opacity in a colour picker's alpha
         /// slider hides the control that matters most here. Stored as one Color all the same.
         /// </summary>
-        private static Color DrawTint(string opacityLabel, string colourLabel, Color tint)
+        private static Color DrawTint(string opacityLabel, string colourLabel, Color tint, Color? overrideColour = null)
         {
             var opacity = EditorGUILayout.Slider(opacityLabel, tint.a, 0f, 1f);
-            var colour = EditorGUILayout.ColorField(new GUIContent(colourLabel), tint, showEyedropper: true, showAlpha: false, hdr: false);
 
-            return new Color(colour.r, colour.g, colour.b, opacity);
+            using (new EditorGUI.DisabledScope(overrideColour.HasValue))
+            {
+                var shown = overrideColour ?? tint;
+                var edited = EditorGUILayout.ColorField(new GUIContent(colourLabel), shown, showEyedropper: true, showAlpha: false, hdr: false);
+
+                //Opacity stays this window's own even when the colour comes from the palette.
+                var colour = overrideColour.HasValue ? tint : edited;
+
+                return new Color(colour.r, colour.g, colour.b, opacity);
+            }
+        }
+
+        private void DrawPalette()
+        {
+            var palette = ThemeStore.Theme.Palette;
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField(Loc.Tr("Palette"), EditorStyles.boldLabel);
+
+            using (var check = new EditorGUI.ChangeCheckScope())
+            {
+                palette.Primary = EditorGUILayout.ColorField(new GUIContent(Loc.Tr("Primary")), palette.Primary, true, false, false);
+                palette.Secondary = EditorGUILayout.ColorField(new GUIContent(Loc.Tr("Secondary")), palette.Secondary, true, false, false);
+                palette.Accent = EditorGUILayout.ColorField(new GUIContent(Loc.Tr("Accent")), palette.Accent, true, false, false);
+
+                if (check.changed)
+                {
+                    ThemeStore.MarkChanged();
+                }
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button(Loc.Tr("Apply Primary to all windows")))
+                {
+                    ApplyToAllWindows(PaletteSlot.Primary);
+                }
+
+                if (GUILayout.Button(Loc.Tr("Unlink all")))
+                {
+                    ApplyToAllWindows(PaletteSlot.Custom);
+                }
+            }
+
+            EditorGUILayout.HelpBox(Loc.Tr("Point windows at a palette slot and editing that colour recolours all of them at once. Put one group on Primary and another on Accent for contrast."), MessageType.Info);
+        }
+
+        /// <summary>
+        /// Covers every window currently open as well as every one the theme already knows, so a
+        /// fresh theme does not have to be filled in window by window first.
+        /// </summary>
+        private void ApplyToAllWindows(PaletteSlot slot)
+        {
+            var theme = ThemeStore.Theme;
+            var applied = 0;
+
+            foreach (var title in OpenWindowTitles())
+            {
+                var appearance = theme.FindOrCreate(title);
+                appearance.BackdropSlot = slot;
+
+                //Fully opaque would show none of the colour at all, which just reads as broken.
+                if (slot != PaletteSlot.Custom && Mathf.Approximately(appearance.BackdropTint.a, 1f))
+                {
+                    var tint = appearance.BackdropTint;
+                    appearance.BackdropTint = new Color(tint.r, tint.g, tint.b, 0.6f);
+                }
+
+                applied++;
+            }
+
+            ThemeStore.MarkChanged();
+
+            Debug.Log($"UniPrism: applied {slot} to {applied} window(s).");
         }
 
         private static void Export()

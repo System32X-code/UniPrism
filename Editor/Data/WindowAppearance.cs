@@ -23,6 +23,14 @@ namespace UniPrism
         [SerializeField]
         private bool _drawOverContent;
         [SerializeField]
+        private ImageScaleMode _imageScaleMode;
+        [SerializeField]
+        private Vector2 _imageAlignment;
+        [SerializeField]
+        private float _imageZoom;
+        [SerializeField]
+        private PaletteSlot _backdropSlot;
+        [SerializeField]
         private Color _backdropTint;
         [SerializeField]
         private Color _contentTint;
@@ -79,11 +87,59 @@ namespace UniPrism
             set => _contentTint = value;
         }
 
+        /// <summary>How the image fills the window. Crop is the default and the only mode that
+        /// uses <see cref="ImageAlignment"/> and <see cref="ImageZoom"/>.</summary>
+        public ImageScaleMode ImageScaleMode
+        {
+            get => _imageScaleMode;
+            set => _imageScaleMode = value;
+        }
+
+        /// <summary>Which part of a cropped image stays visible. (0,0) is bottom left.</summary>
+        public Vector2 ImageAlignment
+        {
+            get => new Vector2(Mathf.Clamp01(_imageAlignment.x), Mathf.Clamp01(_imageAlignment.y));
+            set => _imageAlignment = value;
+        }
+
+        /// <summary>Zero means the field predates zoom, not an image scaled to nothing.</summary>
+        public float ImageZoom
+        {
+            get => _imageZoom <= 0f ? 1f : Mathf.Clamp(_imageZoom, 1f, 8f);
+            set => _imageZoom = value;
+        }
+
+        /// <summary>
+        /// Where the backdrop colour comes from. Custom keeps whatever is in
+        /// <see cref="BackdropTint"/>; any other slot takes its RGB from the theme palette and
+        /// keeps this window's own opacity.
+        /// </summary>
+        public PaletteSlot BackdropSlot
+        {
+            get => _backdropSlot;
+            set => _backdropSlot = value;
+        }
+
         public bool HasBackground => !string.IsNullOrEmpty(_backgroundTextureId);
 
         public bool IsNeutral => !HasBackground
             && BackdropTint == Color.white
-            && ContentTint == Color.white;
+            && ContentTint == Color.white
+            && _backdropSlot == PaletteSlot.Custom;
+
+        /// <summary>
+        /// The backdrop colour actually used, once the palette has had its say.
+        /// </summary>
+        public Color ResolveBackdrop(Palette palette)
+        {
+            if (_backdropSlot == PaletteSlot.Custom || palette == null) return BackdropTint;
+
+            var slotColour = palette.Resolve(_backdropSlot);
+
+            //Opacity stays per window: two windows can share a colour and differ in how much of
+            //their own backdrop they let through.
+            return new Color(slotColour.r, slotColour.g, slotColour.b, BackdropTint.a);
+        }
 
         public WindowAppearance(string windowTitle)
         {
@@ -93,6 +149,10 @@ namespace UniPrism
             _drawOverContent = false;
             _backdropTint = Color.white;
             _contentTint = Color.white;
+            _imageScaleMode = ImageScaleMode.Crop;
+            _imageAlignment = new Vector2(0.5f, 0.5f);
+            _imageZoom = 1f;
+            _backdropSlot = PaletteSlot.Custom;
         }
 
         public WindowAppearance Clone()
@@ -103,7 +163,11 @@ namespace UniPrism
                 _backgroundTint = _backgroundTint,
                 _drawOverContent = _drawOverContent,
                 _backdropTint = _backdropTint,
-                _contentTint = _contentTint
+                _contentTint = _contentTint,
+                _imageScaleMode = _imageScaleMode,
+                _imageAlignment = _imageAlignment,
+                _imageZoom = _imageZoom,
+                _backdropSlot = _backdropSlot
             };
         }
 

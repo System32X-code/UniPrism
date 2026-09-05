@@ -62,6 +62,15 @@ namespace UniPrism
             _hooks.Clear();
         }
 
+        /// <summary>
+        /// Draws an image the way the painter would, for the settings preview. Sharing the routine
+        /// is the point: a preview that approximates the real framing is worse than none.
+        /// </summary>
+        public static void DrawFramedPreview(Rect rect, Texture2D texture, WindowAppearance appearance)
+        {
+            Hook.DrawFramed(rect, texture, appearance);
+        }
+
         public static IEnumerable<string> DescribeHooks()
         {
             foreach (var hook in _hooks.Values)
@@ -216,7 +225,7 @@ namespace UniPrism
 
             private void InvokeTinted(WindowAppearance appearance)
             {
-                var backdropTint = appearance.BackdropTint;
+                var backdropTint = appearance.ResolveBackdrop(ThemeStore.Theme.Palette);
                 var contentTint = appearance.ContentTint;
 
                 if (backdropTint == Color.white && contentTint == Color.white)
@@ -254,7 +263,7 @@ namespace UniPrism
 
                 try
                 {
-                    GUI.DrawTexture(rect, texture, ScaleMode.ScaleAndCrop);
+                    DrawFramed(rect, texture, appearance);
                 }
                 finally
                 {
@@ -262,6 +271,45 @@ namespace UniPrism
                 }
 
                 return true;
+            }
+
+            /// <summary>
+            /// Crop is drawn through texture coordinates rather than <c>ScaleMode.ScaleAndCrop</c>,
+            /// which always centres the image and offers no zoom.
+            /// </summary>
+            internal static void DrawFramed(Rect rect, Texture2D texture, WindowAppearance appearance)
+            {
+                switch (appearance.ImageScaleMode)
+                {
+                    case ImageScaleMode.Stretch:
+                        GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill);
+                        return;
+
+                    case ImageScaleMode.Fit:
+                        GUI.DrawTexture(rect, texture, ScaleMode.ScaleToFit);
+                        return;
+                }
+
+                if (rect.height <= 0f || texture.height <= 0) return;
+
+                var targetAspect = rect.width / rect.height;
+                var imageAspect = (float)texture.width / texture.height;
+
+                //The fraction of the image that covers the window before zoom.
+                var width = imageAspect > targetAspect ? targetAspect / imageAspect : 1f;
+                var height = imageAspect > targetAspect ? 1f : imageAspect / targetAspect;
+
+                var zoom = appearance.ImageZoom;
+                width = Mathf.Clamp01(width / zoom);
+                height = Mathf.Clamp01(height / zoom);
+
+                var alignment = appearance.ImageAlignment;
+
+                //Texture coordinates start at the bottom left, alignment reads top-down.
+                var x = (1f - width) * alignment.x;
+                var y = (1f - height) * (1f - alignment.y);
+
+                GUI.DrawTextureWithTexCoords(rect, texture, new Rect(x, y, width, height));
             }
 
             private static Action AsAction(Delegate source)

@@ -16,12 +16,16 @@ namespace UniPrism
         private List<WindowAppearance> _windows = new List<WindowAppearance>();
         [SerializeField]
         private List<ThemeTexture> _textures = new List<ThemeTexture>();
+        [SerializeField]
+        private Palette _palette = new Palette();
 
         public string Name
         {
             get => string.IsNullOrEmpty(_name) ? "Default" : _name;
             set => _name = value;
         }
+
+        public Palette Palette => _palette ?? (_palette = new Palette());
 
         public IReadOnlyList<WindowAppearance> Windows => _windows;
         public IReadOnlyList<ThemeTexture> Textures => _textures;
@@ -120,6 +124,7 @@ namespace UniPrism
 
             //Textures are immutable once encoded, so they can be shared rather than copied.
             clone._textures.AddRange(_textures);
+            clone._palette = _palette;
 
             return clone;
         }
