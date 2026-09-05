@@ -1,9 +1,9 @@
 using UnityEditor;
 
-namespace Prism
+namespace UniPrism
 {
     [InitializeOnLoad]
-    internal static class PrismEntrypoint
+    internal static class Entrypoint
     {
         /// <summary>
         /// How soon a newly opened window picks up its appearance. Rescanning on every editor
@@ -13,7 +13,7 @@ namespace Prism
 
         private static double _nextRefreshTime;
 
-        static PrismEntrypoint()
+        static Entrypoint()
         {
             EditorApplication.update -= Update;
             EditorApplication.update += Update;

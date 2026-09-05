@@ -1,6 +1,6 @@
 {
-    "name": "com.system32x.prism",
-    "displayName": "Prism",
+    "name": "com.system32x.uniprism",
+    "displayName": "UniPrism",
     "version": "0.1.0",
     "unity": "2021.3",
     "description": "Give each Unity editor window its own background image and colour tint.",

@@ -4,16 +4,16 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
-    /// The whole of Prism's dependency on Unity's internals, in one place.
+    /// The whole of UniPrism's dependency on Unity's internals, in one place.
     /// </summary>
     /// <remarks>
     /// Every editor window is shown by a <c>UnityEditor.HostView</c>, which is internal, and the
     /// delegate it invokes for the window's own OnGUI is protected. Reflection is not a shortcut
     /// here - the field could not be reached any other way - so rather than spread it around, it
-    /// all lives here and every member fails soft: if a future Unity renames something, Prism goes
+    /// all lives here and every member fails soft: if a future Unity renames something, UniPrism goes
     /// inert and says so instead of throwing on every repaint.
     /// </remarks>
     internal static class HostViewBridge

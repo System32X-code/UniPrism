@@ -1,6 +1,6 @@
 {
-    "name": "Prism.Editor",
-    "rootNamespace": "Prism",
+    "name": "UniPrism.Editor",
+    "rootNamespace": "UniPrism",
     "references": [],
     "includePlatforms": [
         "Editor"

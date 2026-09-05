@@ -3,7 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
     /// Holds the active theme.
@@ -13,21 +13,21 @@ namespace Prism
     /// want the editor to look, not a property of whatever you happen to have open, so it follows
     /// the machine across projects and Unity versions.
     /// </remarks>
-    [FilePath("PrismTheme.asset", FilePathAttribute.Location.PreferencesFolder)]
+    [FilePath("Theme.asset", FilePathAttribute.Location.PreferencesFolder)]
     internal sealed class ThemeStore : ScriptableSingleton<ThemeStore>
     {
         [SerializeField]
-        private PrismTheme _theme;
+        private Theme _theme;
 
         public static event Action Changed = () => { };
 
-        public static PrismTheme Theme
+        public static Theme Theme
         {
             get
             {
                 if (instance._theme == null)
                 {
-                    instance._theme = new PrismTheme();
+                    instance._theme = new Theme();
                 }
 
                 return instance._theme;
@@ -54,9 +54,9 @@ namespace Prism
             instance.Save(saveAsText: true);
         }
 
-        public static void Replace(PrismTheme theme)
+        public static void Replace(Theme theme)
         {
-            instance._theme = theme ?? new PrismTheme();
+            instance._theme = theme ?? new Theme();
 
             MarkChanged();
         }
@@ -73,7 +73,7 @@ namespace Prism
         {
             try
             {
-                var theme = JsonUtility.FromJson<PrismTheme>(File.ReadAllText(path));
+                var theme = JsonUtility.FromJson<Theme>(File.ReadAllText(path));
                 if (theme == null) return false;
 
                 Replace(theme);

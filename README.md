@@ -1,4 +1,4 @@
-# Prism
+# UniPrism
 
 [![Unity](https://img.shields.io/badge/Unity-2021.3+-brightgreen)](https://unity.com/releases/editor/qa/lts-releases?version=2021.3)
 
@@ -11,12 +11,12 @@ Give each Unity editor window its own background image and colour tint.
 Package Manager → **+** → **Add package from git URL**:
 
 ```
-https://github.com/System32X-code/Prism.git
+https://github.com/System32X-code/UniPrism.git
 ```
 
 ## Use
 
-**Window → Prism**, pick a window, then:
+**Window → UniPrism**, pick a window, then:
 
 - **Image** — the background for that window. It is encoded into the theme, so the theme stays
   portable even if the source asset moves.
@@ -29,7 +29,7 @@ https://github.com/System32X-code/Prism.git
 A theme lives in your editor preferences folder, so it follows the machine across projects and
 Unity versions. **Export** writes it to a `.prism` file to move or share.
 
-**Window → Prism Diagnostics** reports what the painter can actually see. Every failure here is
+**Window → UniPrism Diagnostics** reports what the painter can actually see. Every failure here is
 silent by design — an unhooked host, a title that does not match, an image that did not decode —
 so run this before assuming something is broken.
 
@@ -43,22 +43,22 @@ written, they survive the whole repaint, and the editor still renders the origin
 Unity versions the managed `GUIStyle` background and colour fields no longer drive rendering.
 
 What does work is tinting. IMGUI multiplies style backdrops by `GUI.backgroundColor` and text and
-icons by `GUI.contentColor` as it draws, rather than reading them back from the style. Prism sets
+icons by `GUI.contentColor` as it draws, rather than reading them back from the style. UniPrism sets
 those around the window's own OnGUI, which is also the one point that sits after the host has
 painted its opaque chrome and before the window paints its content — and past `ResetGUIState`,
 which clears exactly these values at the top of the host's OnGUI and defeats anything set earlier.
 
-So the granularity is **per window, not per style**. Prism cannot recolour one label and leave the
+So the granularity is **per window, not per style**. UniPrism cannot recolour one label and leave the
 button next to it alone. That is a limit of what Unity still honours, not an unfinished feature.
 
-Prism reaches three things Unity does not make public: enumerating hosts, the window a host shows,
+UniPrism reaches three things Unity does not make public: enumerating hosts, the window a host shows,
 and the delegate it invokes to draw it. All three are isolated in
 [HostViewBridge](Editor/Painting/HostViewBridge.cs) and fail soft — if a future Unity renames one,
-Prism goes inert and says so in the diagnostics rather than throwing on every repaint.
+UniPrism goes inert and says so in the diagnostics rather than throwing on every repaint.
 
 ## Credits
 
-Prism grew out of debugging [piti6/UniSkin](https://github.com/piti6/UniSkin), which does not work
+UniPrism grew out of debugging [piti6/UniSkin](https://github.com/piti6/UniSkin), which does not work
 on Unity 2021.2+ for the reasons above. The mechanism here is different, but the investigation
 started there.
 

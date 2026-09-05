@@ -1,13 +1,13 @@
 using System;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
     /// A texture stored inside a theme as PNG bytes, so a theme is a single portable file.
     /// </summary>
     [Serializable]
-    internal class PrismTexture
+    internal class ThemeTexture
     {
         [SerializeField]
         private string _id;
@@ -45,14 +45,14 @@ namespace Prism
             }
         }
 
-        public static PrismTexture From(Texture2D source)
+        public static ThemeTexture From(Texture2D source)
         {
             if (source == null) return null;
 
             var bytes = Encode(source);
             if (bytes == null || bytes.Length == 0) return null;
 
-            return new PrismTexture
+            return new ThemeTexture
             {
                 _id = Guid.NewGuid().ToString("N"),
                 _width = source.width,

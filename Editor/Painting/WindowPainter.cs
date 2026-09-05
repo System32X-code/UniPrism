@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
     /// Applies each window's appearance by wrapping the delegate its host invokes to draw it.

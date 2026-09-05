@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
     /// How one editor window should look, keyed by the window's title.

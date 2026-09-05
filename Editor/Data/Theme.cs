@@ -2,20 +2,20 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
     /// A named set of window appearances plus the images they use, serializable to a single file.
     /// </summary>
     [Serializable]
-    internal class PrismTheme
+    internal class Theme
     {
         [SerializeField]
         private string _name;
         [SerializeField]
         private List<WindowAppearance> _windows = new List<WindowAppearance>();
         [SerializeField]
-        private List<PrismTexture> _textures = new List<PrismTexture>();
+        private List<ThemeTexture> _textures = new List<ThemeTexture>();
 
         public string Name
         {
@@ -24,7 +24,7 @@ namespace Prism
         }
 
         public IReadOnlyList<WindowAppearance> Windows => _windows;
-        public IReadOnlyList<PrismTexture> Textures => _textures;
+        public IReadOnlyList<ThemeTexture> Textures => _textures;
 
         /// <summary>
         /// Lookup is by window title and happens on every repaint of every window, so it is worth
@@ -63,7 +63,7 @@ namespace Prism
             return appearance;
         }
 
-        public PrismTexture FindTexture(string textureId)
+        public ThemeTexture FindTexture(string textureId)
         {
             if (string.IsNullOrEmpty(textureId)) return null;
 
@@ -75,9 +75,9 @@ namespace Prism
             return null;
         }
 
-        public PrismTexture AddTexture(Texture2D source)
+        public ThemeTexture AddTexture(Texture2D source)
         {
-            var texture = PrismTexture.From(source);
+            var texture = ThemeTexture.From(source);
             if (texture == null) return null;
 
             _textures.Add(texture);
@@ -109,9 +109,9 @@ namespace Prism
             _byTitle = null;
         }
 
-        public PrismTheme Clone()
+        public Theme Clone()
         {
-            var clone = new PrismTheme { _name = _name };
+            var clone = new Theme { _name = _name };
 
             foreach (var window in _windows)
             {

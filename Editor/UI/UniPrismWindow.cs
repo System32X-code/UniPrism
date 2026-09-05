@@ -3,29 +3,29 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
-    /// The whole of Prism's UI: pick a window, give it an image and two tints.
+    /// The whole of UniPrism's UI: pick a window, give it an image and two tints.
     /// </summary>
-    internal sealed class PrismWindow : EditorWindow
+    internal sealed class UniPrismWindow : EditorWindow
     {
-        private const string WindowTitle = "Prism";
+        private const string WindowTitle = "UniPrism";
 
         private string _selectedWindowTitle;
         private Vector2 _scrollPosition;
 
-        [MenuItem("Window/Prism")]
+        [MenuItem("Window/UniPrism")]
         private static void Open()
         {
-            GetWindow<PrismWindow>(utility: false, title: WindowTitle);
+            GetWindow<UniPrismWindow>(utility: false, title: WindowTitle);
         }
 
         private void OnGUI()
         {
             if (!HostViewBridge.IsAvailable)
             {
-                EditorGUILayout.HelpBox(Loc.Tr("Prism is inactive: ") + HostViewBridge.UnavailableReason, MessageType.Error);
+                EditorGUILayout.HelpBox(Loc.Tr("UniPrism is inactive: ") + HostViewBridge.UnavailableReason, MessageType.Error);
                 return;
             }
 
@@ -117,7 +117,7 @@ namespace Prism
 
             foreach (var window in Resources.FindObjectsOfTypeAll<EditorWindow>())
             {
-                if (window == null || window is PrismWindow) continue;
+                if (window == null || window is UniPrismWindow) continue;
 
                 var title = window.titleContent?.text;
                 if (!string.IsNullOrEmpty(title)) titles.Add(title);
@@ -210,7 +210,7 @@ namespace Prism
         {
             if (!EditorUtility.DisplayDialog(WindowTitle, Loc.Tr("Reset every window in this theme?"), Loc.Tr("Yes"), Loc.Tr("No"))) return;
 
-            ThemeStore.Replace(new PrismTheme());
+            ThemeStore.Replace(new Theme());
             ThemeStore.Save();
         }
     }

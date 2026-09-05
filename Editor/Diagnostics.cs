@@ -3,7 +3,7 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
-namespace Prism
+namespace UniPrism
 {
     /// <summary>
     /// Reports what the painter can actually see.
@@ -13,13 +13,13 @@ namespace Prism
     /// not match, an image that did not decode - so without a report there is no way to tell them
     /// apart from "nothing happened".
     /// </remarks>
-    internal static class PrismDiagnostics
+    internal static class Diagnostics
     {
-        [MenuItem("Window/Prism Diagnostics")]
+        [MenuItem("Window/UniPrism Diagnostics")]
         private static void LogReport()
         {
             var report = new StringBuilder();
-            report.AppendLine($"Prism diagnostics - Unity {Application.unityVersion}");
+            report.AppendLine($"UniPrism diagnostics - Unity {Application.unityVersion}");
             report.AppendLine();
 
             report.AppendLine(HostViewBridge.IsAvailable
