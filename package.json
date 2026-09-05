@@ -1,0 +1,17 @@
+{
+    "name": "com.system32x.prism",
+    "displayName": "Prism",
+    "version": "0.1.0",
+    "unity": "2021.3",
+    "description": "Give each Unity editor window its own background image and colour tint.",
+    "author": {
+        "name": "System32X-code",
+        "url": "https://github.com/System32X-code"
+    },
+    "keywords": [
+        "editor",
+        "theme",
+        "background",
+        "customization"
+    ]
+}

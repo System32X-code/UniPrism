@@ -1,0 +1,104 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+namespace Prism
+{
+    internal enum PrismLanguage
+    {
+        English,
+        Chinese
+    }
+
+    /// <summary>
+    /// String table for Prism's own window.
+    /// </summary>
+    /// <remarks>
+    /// Unity's editor localization (<c>L10n.Tr</c> with .po files) follows the editor-wide
+    /// language preference, which is not what an in-window toggle needs. Keys are the English
+    /// source strings, gettext style, so an untranslated string still reads correctly.
+    /// </remarks>
+    internal static class Loc
+    {
+        private const string PreferenceKey = "Prism.Language";
+
+        private static PrismLanguage? _current;
+
+        public static PrismLanguage Current
+        {
+            get
+            {
+                if (_current is null)
+                {
+                    _current = (PrismLanguage)EditorPrefs.GetInt(PreferenceKey, (int)SystemDefault());
+                }
+
+                return _current.Value;
+            }
+            set
+            {
+                if (_current == value) return;
+
+                _current = value;
+                EditorPrefs.SetInt(PreferenceKey, (int)value);
+            }
+        }
+
+        /// <summary>Label of the button, naming the language it switches to.</summary>
+        public static string ToggleLabel => Current is PrismLanguage.Chinese ? "English" : "中文";
+
+        public static void Toggle()
+        {
+            Current = Current is PrismLanguage.Chinese ? PrismLanguage.English : PrismLanguage.Chinese;
+        }
+
+        public static string Tr(string source)
+        {
+            if (Current is PrismLanguage.English) return source;
+
+            return _chinese.TryGetValue(source, out var translated) ? translated : source;
+        }
+
+        private static PrismLanguage SystemDefault()
+        {
+            switch (Application.systemLanguage)
+            {
+                case SystemLanguage.Chinese:
+                case SystemLanguage.ChineseSimplified:
+                case SystemLanguage.ChineseTraditional:
+                    return PrismLanguage.Chinese;
+                default:
+                    return PrismLanguage.English;
+            }
+        }
+
+        private static readonly Dictionary<string, string> _chinese = new Dictionary<string, string>
+        {
+            { "Theme", "主题" },
+            { "Save", "保存" },
+            { "Export", "导出" },
+            { "Import", "导入" },
+            { "Reset", "重置" },
+            { "Window", "窗口" },
+            { "Background", "背景" },
+            { "Image", "图片" },
+            { "Image tint", "图片染色" },
+            { "Draw over content", "绘制在内容之上" },
+            { "Colours", "配色" },
+            { "Backdrop tint", "底板染色" },
+            { "Text and icon tint", "文字与图标染色" },
+            { "Reset this window", "重置此窗口" },
+            { "Pick a window to style.", "选择一个要设置的窗口。" },
+            { "No editor windows found.", "没有找到编辑器窗口。" },
+            { "Export theme", "导出主题" },
+            { "Import theme", "导入主题" },
+            { "Could not read that theme file.", "无法读取该主题文件。" },
+            { "Reset every window in this theme?", "重置该主题中的所有窗口？" },
+            { "Yes", "是" },
+            { "No", "否" },
+            { "Prism is inactive: ", "Prism 未生效：" },
+            { "Lower the backdrop tint's alpha to thin out the window's own backdrop so the image shows through. Text stays legible because it is tinted separately.",
+              "调低底板染色的 alpha，窗口自己那层底会变薄，图片就透出来了。文字由另一路染色控制，保持清晰。" },
+        };
+    }
+}
