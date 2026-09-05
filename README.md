@@ -1,65 +1,133 @@
+<div align="center">
+
 # UniPrism
 
-[![Unity](https://img.shields.io/badge/Unity-2021.3+-brightgreen)](https://unity.com/releases/editor/qa/lts-releases?version=2021.3)
+**给 Unity 编辑器的每个窗口配上自己的背景图和配色**
 
-[简体中文](README-CN.md)
+[![Unity](https://img.shields.io/badge/Unity-2022.3%2B-brightgreen)](https://unity.com/releases/editor/qa/lts-releases?version=2022.3)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Language](https://img.shields.io/badge/UI-%E4%B8%AD%20%2F%20EN%20%2F%20%E6%97%A5-lightgrey)](#界面语言)
 
-Give each Unity editor window its own background image and colour tint.
+简体中文 · [English](README-EN.md) · [日本語](README-JA.md)
 
-## Install
+</div>
 
-Package Manager → **+** → **Add package from git URL**:
+---
+
+## 简介
+
+UniPrism 让你给 Unity 编辑器换个样子：整体铺一张壁纸、给不同窗口配不同的色调、把文字调成自己喜欢的颜色。所有设置存在一个主题里，跨工程、跨 Unity 版本跟着你的机器走，也可以导出成单个文件分享。
+
+它**不需要**任何外部依赖，也不修改 Unity 的安装目录。
+
+## 功能
+
+**背景**
+
+- 按窗口设置背景图，或者**整张图铺满整个编辑器**——每个窗口显示自己背后的那一块，拼起来是一张连续的画面，而不是每个窗口各自缩放一份
+- 构图控制：裁切 / 适应 / 拉伸，可调缩放与位置，**带实时预览**
+- 直接从磁盘选图，不用导入工程，也不经过导入器的压缩和尺寸裁剪
+
+**配色**
+
+- 三色调色板（一级 / 二级 / 三级）。窗口指向色位而不是复制颜色，改一次调色板，所有关联的地方一起变
+- 三个可独立染色的区域：**窗口底板**、**文字**（可选是否连图标一起）、**窗口边框**（停靠区的标签栏）
+- 文字染色**不影响图标**——这是默认行为
+
+**组织方式**
+
+- 全局设置管所有窗口，单个窗口可以选择性覆盖背景或配色
+- 主题存在编辑器的 preferences 目录，跨工程生效；导出为 `.prism` 单文件，图片内联，拷走就能用
+- 界面支持中文 / English / 日本語
+
+## 安装
+
+Package Manager → **+** → **Add package from git URL**：
 
 ```
 https://github.com/System32X-code/UniPrism.git
 ```
 
-## Use
+或在 `Packages/manifest.json` 的 `dependencies` 中加入：
 
-**Window → UniPrism**, pick a window, then:
+```json
+"com.system32x.uniprism": "https://github.com/System32X-code/UniPrism.git"
+```
 
-- **Image** — the background for that window. It is encoded into the theme, so the theme stays
-  portable even if the source asset moves.
-- **Backdrop tint** — multiplies the window's own panels. Lower the alpha and its opaque backdrop
-  thins out, letting the image show through.
-- **Text and icon tint** — separate, so thinning the backdrop does not wash out the text.
-- **Draw over content** — for a window whose backdrop will not thin enough. The image is drawn on
-  top instead, watermark style.
+## 使用
 
-A theme lives in your editor preferences folder, so it follows the machine across projects and
-Unity versions. **Export** writes it to a `.prism` file to move or share.
+打开 **窗口 → UniPrism**，界面分三页。
 
-**Window → UniPrism Diagnostics** reports what the painter can actually see. Every failure here is
-silent by design — an unhooked host, a title that does not match, an image that did not decode —
-so run this before assuming something is broken.
+### 全局
 
-## How it works, and what it cannot do
+对所有窗口生效的基准设置。
 
-Editor styles cannot be repainted by editing them. Editor code resolves its styles once, in static
-constructors, into static fields, and about two thirds of those are `new GUIStyle(...)` copies
-disconnected from the skin. Even patching those live instances directly — including the exact
-objects Unity's IMGUI debugger names as the ones used to draw — changes nothing: the values are
-written, they survive the whole repaint, and the editor still renders the original. On current
-Unity versions the managed `GUIStyle` background and colour fields no longer drive rendering.
+| 设置 | 说明 |
+|---|---|
+| 调色板 | 一级 / 二级 / 三级色。下面任何"颜色来源"选了色位，就会跟着它变 |
+| 图片 | 背景图。「浏览...」直接从磁盘选，「构图...」调整裁切 |
+| 整张图铺满编辑器 | 勾上后所有窗口共享一张完整的画面 |
+| 窗口底板 | 不透明度调低，窗口自己那层底会变薄，背景图才透得出来 |
+| 文字 | 独立染色，不影响图标（除非勾「同时染图标」） |
+| 窗口边框 | 停靠区的标签栏和边框 |
 
-What does work is tinting. IMGUI multiplies style backdrops by `GUI.backgroundColor` and text and
-icons by `GUI.contentColor` as it draws, rather than reading them back from the style. UniPrism sets
-those around the window's own OnGUI, which is also the one point that sits after the host has
-painted its opaque chrome and before the window paints its content — and past `ResetGUIState`,
-which clears exactly these values at the top of the host's OnGUI and defeats anything set earlier.
+### 按窗口
 
-So the granularity is **per window, not per style**. UniPrism cannot recolour one label and leave the
-button next to it alone. That is a limit of what Unity still honours, not an unfinished feature.
+选中某个窗口，用两个开关决定它是否偏离全局：
 
-UniPrism reaches three things Unity does not make public: enumerating hosts, the window a host shows,
-and the delegate it invokes to draw it. All three are isolated in
-[HostViewBridge](Editor/Painting/HostViewBridge.cs) and fail soft — if a future Unity renames one,
-UniPrism goes inert and says so in the diagnostics rather than throwing on every repaint.
+- **覆盖全局背景**
+- **覆盖全局配色**
 
-## Credits
+两个都关就完全跟随全局。想做对比效果，可以让一组窗口用一级色、另一组用三级色。
 
-UniPrism grew out of debugging [piti6/UniSkin](https://github.com/piti6/UniSkin), which does not work
-on Unity 2021.2+ for the reasons above. The mechanism here is different, but the investigation
-started there.
+### 关于
 
-MIT licensed — see [LICENSE](LICENSE).
+作者与项目链接，以及「开发者调试 → 输出诊断报告」——把绘制器实际看到的状态打到控制台。**觉得哪里不对先跑这个**，它会说明钩子有没有挂上、窗口标题对不对得上、图片解码是否正常。
+
+## 原理
+
+UniPrism 通过包装宿主视图调用窗口绘制的那个委托来工作。这个位置是唯一可用的插入点：宿主已经画完自己不透明的边框和标签栏，窗口还没开始画内容，并且已经越过了 `ResetGUIState`——它在宿主 OnGUI 的第一句就把 GUI 颜色全部重置，任何更外层设置的状态都会被它抹掉。
+
+上色靠的是**绘制时染色**而不是修改样式：
+
+| 通道 | 作用 |
+|---|---|
+| `GUI.backgroundColor` | 样式底板。调低 alpha 让底板变薄，背景图透出来 |
+| `GUIStyle.textColor` | 文字。图标不读这个字段，所以文字能单独上色 |
+| `GUI.contentColor` | 文字和图标共用。勾了「同时染图标」才走这条 |
+
+有一点值得记录：当前 Unity 版本上，样式的 `background` 字段**已经不驱动渲染**——写得进去、能完整活过重绘、改的还是 IMGUI 调试器指认的那个对象，编辑器照样画原样。但 `textColor` 仍然有效。两者不能一概而论。
+
+Unity 没有公开的三样东西——枚举宿主视图、宿主当前显示的窗口、宿主用来绘制窗口的委托——全部隔离在 [`HostViewBridge`](Editor/Painting/HostViewBridge.cs) 里，并且失败时静默降级：将来 Unity 改了名字，UniPrism 会停止工作并在诊断里说明是哪一项没解析到，而不是每帧抛异常刷屏。
+
+## 已知限制
+
+- **粒度是窗口，不是单个控件。** 没法只把某个标签改成红色而不动旁边的按钮。这是 Unity 现在还认什么的边界。
+- **边框是覆色而非染色**，所以标签上的文字会跟着一起变色。因为标签栏由停靠区绘制，中间没有可以插入染色的位置。强度建议 0.2~0.4。
+- **主窗口最外圈的缝隙够不到**。`SplitView` 和 `MainView` 不绘制任何像素，那块是容器窗口的原生背景，IMGUI 层没有代码在画它。
+- **用系统标题栏拖动浮动窗口时背景不实时**。那一刻是操作系统在搬运位图，Unity 不执行绘制。停靠状态下拖分隔条、调大小是实时的。
+
+## 兼容性
+
+- Unity **2022.3+**
+- 已在 **2022.3.42f1c1** 上验证
+
+UniPrism 使用了 Unity 未公开的内部 API。虽然依赖面已经压到最小（三处，且集中在一个文件里），大版本升级仍有失效的可能——真失效时它会安静地停止工作并说明原因。
+
+## 界面语言
+
+工具栏右上角的下拉框可切换 **中文 / English / 日本語**，选择记在 `EditorPrefs` 里，首次打开按系统语言自动判断。
+
+## 贡献
+
+欢迎提 Issue 和 Pull request。
+
+日语和英语文案由非母语者撰写，如有不自然之处，欢迎指正。
+
+## 鸣谢
+
+UniPrism 源于对 [piti6/UniSkin](https://github.com/piti6/UniSkin) 的排查——那个项目在 Unity 2021.2+ 上已经无法工作。本项目的机制与它完全不同，代码也是重写的，但最初的思路和几个关键发现都来自那次排查过程。
+
+## 许可证
+
+[MIT](LICENSE)
