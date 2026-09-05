@@ -53,7 +53,19 @@ namespace UniPrism
 
             EditorGUILayout.LabelField(Loc.Tr("Licence"), EditorStyles.boldLabel);
             EditorGUILayout.LabelField(Loc.Tr("MIT. Free to use and modify, as long as the notice travels with it."), EditorStyles.wordWrappedMiniLabel);
-            EditorGUILayout.LabelField(Loc.Tr("Grew out of debugging UniSkin by piti6, also MIT."), EditorStyles.wordWrappedMiniLabel);
+
+            EditorGUILayout.Space();
+
+            EditorGUILayout.LabelField(Loc.Tr("Developer"), EditorStyles.boldLabel);
+
+            if (GUILayout.Button(Loc.Tr("Log diagnostics report")))
+            {
+                //Every way this can fail is silent by design, so the report is the only way to
+                //tell an unhooked window from a title that does not match.
+                Diagnostics.LogReport();
+            }
+
+            EditorGUILayout.LabelField(Loc.Tr("Writes what the painter can actually see to the console."), EditorStyles.wordWrappedMiniLabel);
         }
 
         private static void DrawAvatar()

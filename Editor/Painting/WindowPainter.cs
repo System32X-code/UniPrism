@@ -30,6 +30,11 @@ namespace UniPrism
         private static readonly Dictionary<int, Hook> _hooks = new Dictionary<int, Hook>();
         private static readonly List<int> _staleHookIds = new List<int>();
 
+        //Rate limit for the repaint broadcast below, in editor seconds.
+        private const double BroadcastInterval = 1d / 60d;
+
+        private static double _lastBroadcastTime;
+
         public static int HookCount => _hooks.Count;
 
         /// <summary>
@@ -62,13 +67,31 @@ namespace UniPrism
             _hooks.Clear();
         }
 
+
         /// <summary>
-        /// Draws an image the way the painter would, for the settings preview. Sharing the routine
-        /// is the point: a preview that approximates the real framing is worse than none.
+        /// Asks every other themed window to repaint, because one of them moved.
         /// </summary>
-        public static void DrawFramedPreview(Rect rect, Texture2D texture, WindowAppearance appearance)
+        /// <remarks>
+        /// A window spanning the shared image shows the slice that falls behind it, so its slice
+        /// changes when *any* window moves or resizes - not just when it does. Unity repaints the
+        /// windows directly involved in a drag, which is why the others were left showing a stale
+        /// slice until the drag ended and something else forced them to redraw.
+        /// <para/>
+        /// The broadcast comes from a window that has noticed its own rect change, so it costs
+        /// nothing while the layout is still, and it is rate limited because during a drag every
+        /// window notices the change in the same frame.
+        /// </remarks>
+        private static void BroadcastLayoutChange(ScriptableObject origin)
         {
-            Hook.DrawFramed(rect, texture, appearance);
+            var now = EditorApplication.timeSinceStartup;
+            if (now - _lastBroadcastTime < BroadcastInterval) return;
+
+            _lastBroadcastTime = now;
+
+            foreach (var hook in _hooks.Values)
+            {
+                hook.RepaintUnless(origin);
+            }
         }
 
         public static IEnumerable<string> DescribeHooks()
@@ -131,6 +154,7 @@ namespace UniPrism
             private Delegate _installed;
             private int _drawCount;
             private int _paintCount;
+            private Rect _lastScreenRect;
 
             private Hook(ScriptableObject hostView, Delegate original, Action originalInvoke)
             {
@@ -190,9 +214,14 @@ namespace UniPrism
                 _drawCount++;
 
                 var window = HostViewBridge.GetActualView(_hostView);
-                var appearance = FindAppearance(window);
+                if (window == null)
+                {
+                    _originalInvoke.Invoke();
+                    return;
+                }
 
-                if (appearance == null)
+                var appearance = EffectiveAppearance.Resolve(ThemeStore.Theme, window.titleContent?.text);
+                if (appearance.IsNeutral)
                 {
                     _originalInvoke.Invoke();
                     return;
@@ -200,32 +229,30 @@ namespace UniPrism
 
                 var rect = new Rect(0f, 0f, window.position.width, window.position.height);
                 var isRepaint = Event.current != null && Event.current.type == EventType.Repaint;
+                var overContent = appearance.HasBackground && appearance.Background.DrawOverContent;
 
-                if (isRepaint && !appearance.DrawOverContent && PaintBackground(appearance, rect))
+                if (isRepaint && appearance.HasBackground && appearance.Background.SpanEditor)
+                {
+                    NoticeLayoutChange(rect);
+                }
+
+                if (isRepaint && !overContent && PaintBackground(appearance, rect))
                 {
                     _paintCount++;
                 }
 
                 InvokeTinted(appearance);
 
-                if (isRepaint && appearance.DrawOverContent && PaintBackground(appearance, rect))
+                if (isRepaint && overContent && PaintBackground(appearance, rect))
                 {
                     _paintCount++;
                 }
             }
 
-            private static WindowAppearance FindAppearance(EditorWindow window)
+
+            private void InvokeTinted(EffectiveAppearance appearance)
             {
-                if (window == null) return null;
-
-                var title = window.titleContent?.text;
-
-                return string.IsNullOrEmpty(title) ? null : ThemeStore.Theme.Find(title);
-            }
-
-            private void InvokeTinted(WindowAppearance appearance)
-            {
-                var backdropTint = appearance.ResolveBackdrop(ThemeStore.Theme.Palette);
+                var backdropTint = appearance.BackdropTint;
                 var contentTint = appearance.ContentTint;
 
                 if (backdropTint == Color.white && contentTint == Color.white)
@@ -234,11 +261,24 @@ namespace UniPrism
                     return;
                 }
 
+                // Text is tinted through the styles, which icons do not read, so they keep their
+                // own colours. Including icons means falling back to the shared multiplier.
+                var viaStyles = !appearance.TintIcons && contentTint != Color.white;
+
                 var previousBackground = GUI.backgroundColor;
                 var previousContent = GUI.contentColor;
 
                 GUI.backgroundColor = previousBackground * backdropTint;
-                GUI.contentColor = previousContent * contentTint;
+
+                if (!viaStyles)
+                {
+                    GUI.contentColor = previousContent * contentTint;
+                }
+
+                if (viaStyles)
+                {
+                    TextTint.Apply(contentTint);
+                }
 
                 try
                 {
@@ -246,24 +286,60 @@ namespace UniPrism
                 }
                 finally
                 {
+                    //Shared styles: they have to be back before any other view draws.
+                    TextTint.Restore();
+
                     GUI.backgroundColor = previousBackground;
                     GUI.contentColor = previousContent;
                 }
             }
 
-            private static bool PaintBackground(WindowAppearance appearance, Rect rect)
+            /// <summary>
+            /// Tells the others when this window has moved, so their slice of the shared image
+            /// keeps up during a drag rather than catching up when it ends.
+            /// </summary>
+            private void NoticeLayoutChange(Rect rect)
+            {
+                var topLeft = GUIUtility.GUIToScreenPoint(new Vector2(rect.x, rect.y));
+                var screenRect = new Rect(topLeft.x, topLeft.y, rect.width, rect.height);
+
+                //Sub-pixel jitter is not a layout change; redrawing every window for it would be.
+                if (Approximately(screenRect, _lastScreenRect)) return;
+
+                _lastScreenRect = screenRect;
+
+                BroadcastLayoutChange(_hostView);
+            }
+
+            private static bool Approximately(Rect a, Rect b)
+            {
+                return Mathf.Abs(a.x - b.x) < 0.5f
+                    && Mathf.Abs(a.y - b.y) < 0.5f
+                    && Mathf.Abs(a.width - b.width) < 0.5f
+                    && Mathf.Abs(a.height - b.height) < 0.5f;
+            }
+
+            public void RepaintUnless(ScriptableObject origin)
+            {
+                if (ReferenceEquals(_hostView, origin)) return;
+
+                HostViewBridge.GetActualView(_hostView)?.Repaint();
+            }
+
+            private static bool PaintBackground(EffectiveAppearance appearance, Rect rect)
             {
                 if (!appearance.HasBackground) return false;
 
-                var texture = ThemeStore.Theme.FindTexture(appearance.BackgroundTextureId)?.Texture;
+                var settings = appearance.Background;
+                var texture = ThemeStore.Theme.FindTexture(settings.BackgroundTextureId)?.Texture;
                 if (texture == null) return false;
 
                 var previousColor = GUI.color;
-                GUI.color = previousColor * appearance.BackgroundTint;
+                GUI.color = previousColor * settings.BackgroundTint;
 
                 try
                 {
-                    DrawFramed(rect, texture, appearance);
+                    ImageFraming.Draw(rect, texture, settings, spanEditor: true);
                 }
                 finally
                 {
@@ -271,45 +347,6 @@ namespace UniPrism
                 }
 
                 return true;
-            }
-
-            /// <summary>
-            /// Crop is drawn through texture coordinates rather than <c>ScaleMode.ScaleAndCrop</c>,
-            /// which always centres the image and offers no zoom.
-            /// </summary>
-            internal static void DrawFramed(Rect rect, Texture2D texture, WindowAppearance appearance)
-            {
-                switch (appearance.ImageScaleMode)
-                {
-                    case ImageScaleMode.Stretch:
-                        GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill);
-                        return;
-
-                    case ImageScaleMode.Fit:
-                        GUI.DrawTexture(rect, texture, ScaleMode.ScaleToFit);
-                        return;
-                }
-
-                if (rect.height <= 0f || texture.height <= 0) return;
-
-                var targetAspect = rect.width / rect.height;
-                var imageAspect = (float)texture.width / texture.height;
-
-                //The fraction of the image that covers the window before zoom.
-                var width = imageAspect > targetAspect ? targetAspect / imageAspect : 1f;
-                var height = imageAspect > targetAspect ? 1f : imageAspect / targetAspect;
-
-                var zoom = appearance.ImageZoom;
-                width = Mathf.Clamp01(width / zoom);
-                height = Mathf.Clamp01(height / zoom);
-
-                var alignment = appearance.ImageAlignment;
-
-                //Texture coordinates start at the bottom left, alignment reads top-down.
-                var x = (1f - width) * alignment.x;
-                var y = (1f - height) * (1f - alignment.y);
-
-                GUI.DrawTextureWithTexCoords(rect, texture, new Rect(x, y, width, height));
             }
 
             private static Action AsAction(Delegate source)

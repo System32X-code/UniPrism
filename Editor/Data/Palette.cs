@@ -11,7 +11,7 @@ namespace UniPrism
         Custom = 0,
         Primary = 1,
         Secondary = 2,
-        Accent = 3
+        Tertiary = 3
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ namespace UniPrism
         [SerializeField]
         private Color _secondary;
         [SerializeField]
-        private Color _accent;
+        private Color _tertiary;
 
         //A theme saved before the palette existed deserializes to (0,0,0,0), which would paint
         //every window black rather than leave it alone.
@@ -61,10 +61,10 @@ namespace UniPrism
             set => _secondary = value;
         }
 
-        public Color Accent
+        public Color Tertiary
         {
-            get => Resolve(_accent);
-            set => _accent = value;
+            get => Resolve(_tertiary);
+            set => _tertiary = value;
         }
 
         public Color Resolve(PaletteSlot slot)
@@ -73,7 +73,7 @@ namespace UniPrism
             {
                 case PaletteSlot.Primary: return Primary;
                 case PaletteSlot.Secondary: return Secondary;
-                case PaletteSlot.Accent: return Accent;
+                case PaletteSlot.Tertiary: return Tertiary;
                 default: return Color.white;
             }
         }

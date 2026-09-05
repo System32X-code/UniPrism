@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace UniPrism
 {
@@ -21,11 +22,17 @@ namespace UniPrism
         private const string HostViewTypeName = "UnityEditor.HostView";
         private const string OnGUIFieldName = "m_OnGUI";
         private const string ActualViewPropertyName = "actualView";
+        private const string WindowBackendPropertyName = "windowBackend";
+        private const string VisualTreePropertyName = "visualTree";
+        private const string ChromeContainerName = "Dockarea";
+        private const string BorderSizePropertyName = "borderSize";
 
         private static bool _resolved;
         private static Type _hostViewType;
         private static FieldInfo _onGUIField;
         private static PropertyInfo _actualViewProperty;
+        private static PropertyInfo _windowBackendProperty;
+        private static PropertyInfo _borderSizeProperty;
 
         /// <summary>
         /// Why the bridge is unavailable, for the diagnostics report. Null when everything resolved.
@@ -81,6 +88,83 @@ namespace UniPrism
             try
             {
                 return _actualViewProperty.GetValue(hostView) as EditorWindow;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The container the host draws its chrome - tab strip, borders - through.
+        /// </summary>
+        /// <remarks>
+        /// The chrome is painted before the host invokes the window, and from inside the window's
+        /// own OnGUI the GUI is clipped to the window's content, so neither tinting nor drawing
+        /// reaches it from there. This container is the outer scope where it can.
+        /// </remarks>
+        public static IMGUIContainer GetChromeContainer(ScriptableObject hostView)
+        {
+            Resolve();
+
+            if (hostView == null || _windowBackendProperty == null) return null;
+
+            try
+            {
+                var backend = _windowBackendProperty.GetValue(hostView);
+                if (backend == null) return null;
+
+                var visualTreeProperty = backend.GetType().GetProperty(
+                    VisualTreePropertyName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                if (!(visualTreeProperty?.GetValue(backend) is VisualElement panelRoot)) return null;
+
+                return FindChromeContainer(panelRoot);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static IMGUIContainer FindChromeContainer(VisualElement panelRoot)
+        {
+            IMGUIContainer fallback = null;
+
+            foreach (var child in panelRoot.Children())
+            {
+                if (!(child is IMGUIContainer container)) continue;
+
+                //Named per host; the first one is the chrome, but match by name where possible.
+                if (container.name != null && container.name.StartsWith(ChromeContainerName, StringComparison.Ordinal))
+                {
+                    return container;
+                }
+
+                if (fallback == null) fallback = container;
+            }
+
+            return fallback;
+        }
+
+        /// <summary>
+        /// How far the window's content sits inside the host on each side: the tab strip above it
+        /// and the borders around it.
+        /// </summary>
+        /// <remarks>
+        /// Deriving the strip from the height difference only finds the top. The left, right and
+        /// bottom borders are a few pixels each and stay conspicuously unpainted without this.
+        /// </remarks>
+        public static RectOffset GetBorderSize(ScriptableObject hostView)
+        {
+            Resolve();
+
+            if (hostView == null || _borderSizeProperty == null) return null;
+
+            try
+            {
+                return _borderSizeProperty.GetValue(hostView) as RectOffset;
             }
             catch (Exception)
             {
@@ -146,7 +230,13 @@ namespace UniPrism
             if (_actualViewProperty == null)
             {
                 UnavailableReason = $"{HostViewTypeName}.{ActualViewPropertyName} not found";
+                return;
             }
+
+            //Optional: without these the chrome simply stays untinted, which is not worth going
+            //inert over.
+            _windowBackendProperty = _hostViewType.GetProperty(WindowBackendPropertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            _borderSizeProperty = _hostViewType.GetProperty(BorderSizePropertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         }
     }
 }

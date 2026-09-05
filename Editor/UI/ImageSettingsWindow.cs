@@ -17,10 +17,14 @@ namespace UniPrism
 
         [SerializeField]
         private string _windowTitle;
+        [SerializeField]
+        private bool _global;
 
+        /// <summary>Pass a null title to frame the theme's global image.</summary>
         public static void Open(string windowTitle)
         {
             var window = GetWindow<ImageSettingsWindow>(utility: true, title: Loc.Tr("Image settings"));
+            window._global = string.IsNullOrEmpty(windowTitle);
             window._windowTitle = windowTitle;
             window.minSize = new Vector2(360f, 340f);
             window.Show();
@@ -28,45 +32,39 @@ namespace UniPrism
 
         private void OnGUI()
         {
-            if (string.IsNullOrEmpty(_windowTitle))
-            {
-                EditorGUILayout.HelpBox(Loc.Tr("Pick a window to style."), MessageType.Info);
-                return;
-            }
-
-            var appearance = ThemeStore.Theme.Find(_windowTitle);
-            if (appearance == null || !appearance.HasBackground)
+            var settings = ResolveSettings();
+            if (settings == null || !settings.HasBackground)
             {
                 EditorGUILayout.HelpBox(Loc.Tr("This window has no background image."), MessageType.Info);
                 return;
             }
 
-            EditorGUILayout.LabelField(_windowTitle, EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(_global ? Loc.Tr("Global") : _windowTitle, EditorStyles.boldLabel);
 
-            DrawPreview(appearance);
+            DrawPreview(settings);
 
             EditorGUILayout.Space();
 
             using (var check = new EditorGUI.ChangeCheckScope())
             {
-                appearance.ImageScaleMode = (ImageScaleMode)EditorGUILayout.Popup(
+                settings.ImageScaleMode = (ImageScaleMode)EditorGUILayout.Popup(
                     Loc.Tr("Scale mode"),
-                    (int)appearance.ImageScaleMode,
+                    (int)settings.ImageScaleMode,
                     new[] { Loc.Tr("Crop"), Loc.Tr("Fit"), Loc.Tr("Stretch") });
 
-                using (new EditorGUI.DisabledScope(appearance.ImageScaleMode != ImageScaleMode.Crop))
+                using (new EditorGUI.DisabledScope(settings.ImageScaleMode != ImageScaleMode.Crop))
                 {
-                    appearance.ImageZoom = EditorGUILayout.Slider(Loc.Tr("Zoom"), appearance.ImageZoom, 1f, 4f);
+                    settings.ImageZoom = EditorGUILayout.Slider(Loc.Tr("Zoom"), settings.ImageZoom, 1f, 4f);
 
-                    var alignment = appearance.ImageAlignment;
+                    var alignment = settings.ImageAlignment;
                     alignment.x = EditorGUILayout.Slider(Loc.Tr("Horizontal"), alignment.x, 0f, 1f);
                     alignment.y = EditorGUILayout.Slider(Loc.Tr("Vertical"), alignment.y, 0f, 1f);
-                    appearance.ImageAlignment = alignment;
+                    settings.ImageAlignment = alignment;
 
                     if (GUILayout.Button(Loc.Tr("Centre")))
                     {
-                        appearance.ImageAlignment = new Vector2(0.5f, 0.5f);
-                        appearance.ImageZoom = 1f;
+                        settings.ImageAlignment = new Vector2(0.5f, 0.5f);
+                        settings.ImageZoom = 1f;
                         GUI.changed = true;
                     }
                 }
@@ -81,9 +79,9 @@ namespace UniPrism
             EditorGUILayout.HelpBox(Loc.Tr("Fit and Stretch use the whole image, so zoom and alignment only apply to Crop."), MessageType.Info);
         }
 
-        private void DrawPreview(WindowAppearance appearance)
+        private void DrawPreview(AppearanceSettings settings)
         {
-            var texture = ThemeStore.Theme.FindTexture(appearance.BackgroundTextureId)?.Texture;
+            var texture = ThemeStore.Theme.FindTexture(settings.BackgroundTextureId)?.Texture;
             if (texture == null)
             {
                 EditorGUILayout.HelpBox(Loc.Tr("The image could not be decoded."), MessageType.Warning);
@@ -105,16 +103,27 @@ namespace UniPrism
             EditorGUI.DrawRect(rect, new Color(0f, 0f, 0f, 0.35f));
 
             var previousColor = GUI.color;
-            GUI.color = previousColor * appearance.BackgroundTint;
+            GUI.color = previousColor * settings.BackgroundTint;
 
             try
             {
-                WindowPainter.DrawFramedPreview(rect, texture, appearance);
+                ImageFraming.Draw(rect, texture, settings, spanEditor: false);
             }
             finally
             {
                 GUI.color = previousColor;
             }
+        }
+
+        private AppearanceSettings ResolveSettings()
+        {
+            if (_global) return ThemeStore.Theme.Global;
+
+            if (string.IsNullOrEmpty(_windowTitle)) return null;
+
+            var window = ThemeStore.Theme.Find(_windowTitle);
+
+            return window != null && window.OverridesBackground ? window.Settings : null;
         }
 
         private EditorWindow FindTargetWindow()

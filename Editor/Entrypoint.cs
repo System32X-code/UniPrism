@@ -18,11 +18,11 @@ namespace UniPrism
             EditorApplication.update -= Update;
             EditorApplication.update += Update;
 
-            AssemblyReloadEvents.beforeAssemblyReload -= WindowPainter.DetachAll;
-            AssemblyReloadEvents.beforeAssemblyReload += WindowPainter.DetachAll;
+            AssemblyReloadEvents.beforeAssemblyReload -= DetachAll;
+            AssemblyReloadEvents.beforeAssemblyReload += DetachAll;
 
-            EditorApplication.quitting -= WindowPainter.DetachAll;
-            EditorApplication.quitting += WindowPainter.DetachAll;
+            EditorApplication.quitting -= DetachAll;
+            EditorApplication.quitting += DetachAll;
         }
 
         private static void Update()
@@ -33,6 +33,13 @@ namespace UniPrism
             _nextRefreshTime = now + RefreshIntervalSeconds;
 
             WindowPainter.Refresh();
+            ChromePainter.Refresh();
+        }
+
+        private static void DetachAll()
+        {
+            WindowPainter.DetachAll();
+            ChromePainter.DetachAll();
         }
     }
 }
