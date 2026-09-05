@@ -10,6 +10,8 @@
 
 简体中文 · [English](README-EN.md) · [日本語](README-JA.md)
 
+<img src="Documentation~/showcase.png" alt="UniPrism 效果展示" width="820">
+
 </div>
 
 ---
